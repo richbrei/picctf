@@ -35,7 +35,7 @@ format(28777, '#010b') = '0b111000001101001'
 chr(28777) = '灩'
 ```
 
-So to decode it we simply need to reverse the process by for each element in the encoded flag we take the first 8 bit (which we get by just shifting it 8 bits right) as one character and the second 8 bit ( which we get by AND-ing the elment with 255 which is 0b0000000011111111) as the next character:
+So to decode it we simply need to reverse the process by for each element in the encoded flag we take the first 8 bit (which we get by just shifting it 8 bits right) as one character and the second 8 bit (which we get by AND-ing the element with 255 which is 0b0000000011111111) as the next character:
 
 ```
 flag[0] = encoded_flag[0] >> 8
