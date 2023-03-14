@@ -41,7 +41,7 @@ qemu: uncaught target signal 11 (Segmentation fault) - core dumped
 Segmentation fault
 ```
 
-Told you it works like charm... So actually what's wrong is that the program requires command line arguments or it will crash. so if we try a couple, we see that it is working:
+Told you it works like charm... So actually what's wrong is that the program requires command line arguments or it will crash. If we try a couple, we see that it is working:
 
 ```
 ./chall 0 0
@@ -54,7 +54,7 @@ Result: 12
 Result: 12
 ```
 
-So we see that the program simply throws back the second command line argument at us, regardless of the forst one. With this information we could already complete the chalenge, however maybe it is interesting to look at the code to learn something about ARM Assembly. So let's waste some time:
+We see that the program simply throws back the second command line argument at us, regardless of the first one. With this information we could already complete the chalenge, however maybe it is interesting to look at the code to learn something about ARM Assembly. So let's waste some time:
 
 First some general points about the ARM architecure and the instructions used in this example. We see a lot of `x0`, `x1`, ..., `x30` and so on. These are (according to the invitingly concise 11952 page ARM Architecture Reference Manual https://developer.arm.com/documentation/ddi0487/latest) the 64 bit general purpose registers of the processor. A register is essentially a small bit of memory inside the processor which can store data while the processor is working with it. These are baked into the CPU and can be accessed without addressing, which makes using them much faster than using RAM. A good overview of how a register wirks can be found in Ben Eater's beautiful series on building a gigantic 8-bit breadboard CPU https://www.youtube.com/watch?v=QzWW-CBugZo&t=5s. There are also some `w0` and `w1`, which are the 32 bit general purpose registers, which is a noce way of saying each `wN` is just the first 32 bits of the respective `xN`. so if `x0` holds the (hex)-value afafafafc4c4c4c4 then `w0` is just c4c4c4c4.
 
