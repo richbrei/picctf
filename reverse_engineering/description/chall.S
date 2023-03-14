@@ -1,10 +1,9 @@
-; this top part gives some metadata for the assembly code
-	.arch armv8-a     			; specifying the platform as ARMv8-a
-	.file	"chall.c" 			; specifying the C-source fine from which the code has been compiled 
-	.text						; this says that the following lines are part of the executable section
+	.arch armv8-a     			
+	.file	"chall.c" 			
+	.text						
 	.align	2
-	.global	func1				; declares the function func1 as a global variable
-	.type	func1, %function	; 
+	.global	func1				
+	.type	func1, %function	
 func1:
 	sub	sp, sp, #16
 	str	w0, [sp, 12]
