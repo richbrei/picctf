@@ -5,7 +5,7 @@
 	.global	func1				
 	.type	func1, %function	
 func1:
-	sub	sp, sp, #16
+	sub	sp, sp, #16 
 	str	w0, [sp, 12]
 	str	w1, [sp, 8]
 	ldr	w1, [sp, 12]
