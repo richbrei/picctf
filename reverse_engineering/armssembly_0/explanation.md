@@ -94,10 +94,57 @@ Again I will create a stripped version of the assembly file to have a better ove
 stp	x29, x30, [sp, -48]!
 ```
 
-`stp` stands for store pair and stores the values in the two registers `x29`and `x30` in the processor into the memory location passed as the third argument in the instruction. This third argument means that the stack pointer should be decremented by 48 and the values should be stored at this new address. 
+`stp` stands for store pair and stores the values in the two registers `x29`and `x30` in the processor into the memory location passed as the third argument in the instruction. This third argument means that the stack pointer should be decremented by 48 and the values should be stored at this new address. This is called pre-indexing (https://developer.arm.com/documentation/den0024/a/The-A64-instruction-set/Memory-access-instructions/Specifying-the-address-for-a-Load-or-Store-instruction)
 
-The second line is belongs 
+The second line is belongs to the same procedure, namely "pushing a stack frame". Let's try to visualize this. The best way to get detailed information on the inner workings of our program is to use the GNU Debugger `gdb`. To work with AARCH64 binaries we will have to install gdb-multiarch
 
+```
+sudo apt install gdb-multiarch
+```
+
+Now we can "debug" AARCH64 binaries with this tool the following way. We execute the binary using qemu-aarch64 but with a gdb-flag:
+
+```
+qemu-aarch64 -g 1234 ./test_print hi
+```
+
+This will look as if the program hangs but essentially it just doesn't execute until you make it do so from within gdb. Now from a separate terminal window we run:
+
+```
+gdb-multiarch -q ./test_print
+```
+
+which will get us into gdb. First we will need to connect to the qemu session we just started by:
+
+```
+(gdb) target remote :1234
+```
+
+Next we will set our breakpoint to `main` by doing:
+
+```
+(gdb) break *main
+```
+
+the asterisk is important or the program will break not where main starts in memory but a couple of instructions later as usually when working with binaries we are not intersted in the first couple of instructions as they are always the same. but we want to go step by step so we need the asterisk.
+
+Now we can display the assembly code of our program:
+
+```
+(gdb) layout asm
+```
+
+your screen should look somthing like this now:
+
+(include screenshot here)
+
+now we hit 
+
+```
+(gdb) continue
+```
+
+which will run us to the breakpoint we set for our program.
 
 ## Notes
 
@@ -111,3 +158,4 @@ We can go through the code line by line (starting with the `main`-function in li
 
 Resources:  
 https://stackoverflow.com/questions/64638627/explain-arm64-instruction-stp
+https://adrianstoll.com/post/working-with-64-bit-arm-binaries-on-x86-64-ubuntu/
