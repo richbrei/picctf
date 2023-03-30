@@ -61,7 +61,6 @@ $ qemu-aarch64 ./chall 12 136
 Result: 136
 $ qemu-aarch64 ./chall 1222 136
 Result: 1222
-$ qemu-aarch64 ./chall 1222 136
 ```
 
 We see that the program simply throws back the larger of the two command line argument at us. With this information we could already complete the challenge, however maybe it is interesting to look at the code to learn something about ARM Assembly. So let's waste some time (i want to get a better understanding of Assembly language so i am only wasting your time, not my own...).
