@@ -2,8 +2,14 @@
 #include <stdlib.h>
 
 int func1(int first, int second){
-    // do some more stuff
-    return(second);
+    int result;
+    if (first > second) {
+        result = first;
+    } 
+    else {
+        result = second;
+    }
+    return(result);
 }
 
 int main(int argc, char **argv){

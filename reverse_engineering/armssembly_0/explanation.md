@@ -49,15 +49,22 @@ Told you it works like charm... So actually what's wrong is that the program req
 ```
 $ qemu-aarch64 ./chall 0 0
 Result: 0
-$ qemu-aarch64 ./chall 0 1
-Result: 1
 $ qemu-aarch64 ./chall 0 12
 Result: 12
-$ qemu-aarch64 ./chall 1 12
+$ qemu-aarch64 ./chall 12 0
 Result: 12
+$ qemu-aarch64 ./chall 12 12
+Result: 12
+$ qemu-aarch64 ./chall 12 11
+Result: 12
+$ qemu-aarch64 ./chall 12 136
+Result: 136
+$ qemu-aarch64 ./chall 1222 136
+Result: 1222
+$ qemu-aarch64 ./chall 1222 136
 ```
 
-We see that the program simply throws back the second command line argument at us, regardless of the first one. With this information we could already complete the challenge, however maybe it is interesting to look at the code to learn something about ARM Assembly. So let's waste some time (i want to get a better understanding of Assembly language so i am only wasting your time, not my own...).
+We see that the program simply throws back the larger of the two command line argument at us. With this information we could already complete the challenge, however maybe it is interesting to look at the code to learn something about ARM Assembly. So let's waste some time (i want to get a better understanding of Assembly language so i am only wasting your time, not my own...).
 
 ## Diving into the Assembly Code
 
@@ -77,7 +84,7 @@ aarch64-linux-gnu-gcc -S -static -o test.S test.c
 
 we can see that what we get is quite similar though not identical to what has been given to us in the challenge. We can see that there are a lot more labels added like `.cfi_startproc`. I will ignore these for now as i do not yet understand their function myself, however as they are not present in the original assembly code file and this still runs i assume that they are simply some overhead added by the newer version of the gcc compiler to confuse me as the reader. In the second to last line of `chall.S` we can see that it was compiled using gcc 7.5.0 and i am using gcc 11.3.0 In the `test_stripped.S` file we can see the same code with these labels removed. Let's take the rest of it apart to better understand what's happening.
 
-### How printf on its own works
+### How printf(argv[1]) works on its own
 
 First let's look at an even simpler program that just takes the first command line argument and without modifying it at all prints it back at us. The respective file is called `test_print.c`. As we do not use `atoi` we will have to change some things. First, the variable `first`, into which we store the first command line argument, needs to be of type string (or pointer to character, which is how you declare a string in C). Second, in the format string of printf we need to replace the `%d` for double with an `%s` for string. Now we can compile and run it, and if it works look at the corresponding assembly code.
 
@@ -422,7 +429,9 @@ and with another nexti the program terminates.
 
 ![](./images/snapshot_return_exit.PNG)
 
+## Description of the actual program in question
 
+As we now ave discussed a lot about printf, argv and so on we can try to understand the assembly code provided in `chall.S`. We can see that it handles 2 command line arguments (the address of the first being stored at the address stored in x1 offset by 8 and the second in the address stored in x1 offset by 16). It retreives the address of the first, calls `atoi` on ot and stores the result in `w19`. Then it calls `atoi` on the second one and stores the result in `w1`, the moves the first argument from `w19` back into `w0`. Then it calls `func1` which first makes room for another 16 bytes on the stack by `sub sp, sp, #16`, then stores `w0`and `w1` on the stack, then loads them in reverse order (what was in `w0`does into `w1`and vice-versa). It then compares the two values. If 
 
 
 

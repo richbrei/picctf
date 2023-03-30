@@ -5,13 +5,23 @@
 	.global	func1
 	.type	func1, %function
 func1:
-	sub	sp, sp, #16
+	sub	sp, sp, #32
 	str	w0, [sp, 12]
 	str	w1, [sp, 8]
+	ldr	w1, [sp, 12]
 	ldr	w0, [sp, 8]
-	add	sp, sp, 16
+	cmp	w1, w0
+	ble	.L2
+	ldr	w0, [sp, 12]
+	str	w0, [sp, 28]
+	b	.L3
+.L2:
+	ldr	w0, [sp, 8]
+	str	w0, [sp, 28]
+.L3:
+	ldr	w0, [sp, 28]
+	add	sp, sp, 32
 	ret
-.LFE6:
 	.size	func1, .-func1
 	.section	.rodata
 	.align	3
