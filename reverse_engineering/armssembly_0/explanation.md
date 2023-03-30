@@ -9,7 +9,7 @@ The flag will contain this number in format: picoCTF{XXXXXXXX} -> (hex, lowercas
 
 ## Cross-Compiling ARMv8 assembly on an x86_64 machine
 
-The first intuition would be to just compile and run the program with the required inputs. This is however not a trivial task. As it is ARMv8 assembly it won't run on most normal laptop or desktop machines as they are typically x86 processor architectures. A Raspberry Pi (the ARM chip that might be lying around some peoples houses) it is not certain that this will compile, on my Raspberry Pi 4B the assembler threw an error as i am using the 32-bit version of the OS. One option to run the program is to use `qemu` which (according to it's wikipedia https://en.wikipedia.org/wiki/QEMU) can do user-mode emulation for several processor architectures, including ARMv8. First we need to assemble the source code file into an executable binary. I am using Ubuntu in WSL so to install the software required for compilation i can run:
+The first intuition would be to just compile and run the program with the required inputs. This is however not a trivial task. As it is ARMv8 assembly it won't run on most normal laptop or desktop machines as they are typically x86 processor architectures. A Raspberry Pi (the ARM chip that might be lying around some peoples houses) it is not certain that this will compile, on my Raspberry Pi 4B the assembler threw an error as i am using the 32-bit version of the OS. One option to run the program is to use `qemu` which can do user-mode emulation for several processor architectures, including ARMv8. First we need to assemble the source code file into an executable binary. I am using Ubuntu in WSL so to install the software required for compilation i can run:
 
 ```
 sudo apt install binutils-aarch64-linux-gnu
@@ -422,16 +422,18 @@ and with another nexti the program terminates.
 
 ![](./images/snapshot_return_exit.PNG)
 
-## Notes
-
-Next some general points about the ARM architecure and the instructions used in this example. We see a lot of `x0`, `x1`, ..., `x30` and so on. These are (according to the invitingly concise 11952 page ARM Architecture Reference Manual https://developer.arm.com/documentation/ddi0487/latest) the 64 bit general purpose registers of the processor. A register is essentially a small bit of memory inside the processor which can store data while the processor is working with it. These are baked into the CPU and can be accessed without addressing, which makes using them much faster than using RAM. A good overview of how a register wirks can be found in Ben Eater's beautiful series on building a gigantic 8-bit breadboard CPU https://www.youtube.com/watch?v=QzWW-CBugZo&t=5s. There are also some `w0` and `w1`, which are the 32 bit general purpose registers, which is a noce way of saying each `wN` is just the first 32 bits of the respective `xN`. so if `x0` holds the (hex)-value afafafafc4c4c4c4 then `w0` is just c4c4c4c4.
-
-We also see `sp` a lot, which is the stack pointer, which keeps track of where exactly we are in RAM. A good intuition on the stack pointer and the stack in general is shown in this video https://www.youtube.com/watch?v=xBjQVxVxOxc (again by Ben Eater, not sure if to understand it you need to watch the entire series, sry). Another great resource is this video https://www.youtube.com/watch?v=7fezHk7nmzY, detailing the memory management of ARM CPUs specifically, introducing the concept of stack frames.
-
-We can go through the code line by line (starting with the `main`-function in line `31`) to see what it does:
 
 
 
-Resources:  
-https://stackoverflow.com/questions/64638627/explain-arm64-instruction-stp
-https://adrianstoll.com/post/working-with-64-bit-arm-binaries-on-x86-64-ubuntu/
+
+## Resources:  
+https://stackoverflow.com/questions/64638627/explain-arm64-instruction-stp  
+https://adrianstoll.com/post/working-with-64-bit-arm-binaries-on-x86-64-ubuntu/  
+https://stackoverflow.com/questions/41906688/what-are-the-semantics-of-adrp-and-adrl-instructions-in-arm-assembly  
+https://developer.arm.com/documentation/ddi0487/latest  
+https://www.youtube.com/watch?v=QzWW-CBugZo&t=5s  
+https://www.youtube.com/watch?v=xBjQVxVxOxc  
+https://www.youtube.com/watch?v=7fezHk7nmzY    
+https://en.wikipedia.org/wiki/QEMU  
+
+
