@@ -146,7 +146,7 @@ now we hit
 
 which will run us to the breakpoint we set for our program. We can now see the program's assembly code layed out as follows:
 
-![](./images/snapshot_main.png)
+![](./images/snapshot_main.PNG)
 
 We can retreive information about the values stored in our registers using the `info registers <register_number>` command. registers of interest to us are `x0`, `x1`, `x29`, `x30` and `sp`. The current state of these registers is:
 
@@ -381,6 +381,9 @@ bl 0x4066f0 <printf>
 
 If you execute this using `nexti` and check out the terminal where you intially ran your `qemu-aarch64 -g 1234 ./test_print hi`, you can see that he has now printed `Result: hi` but still seems as though he is hanging. This is because even though he has called printf the main function has not yet returned so qemu will not et stop it's work. We can scroll down to the memory location of printf (0x4066f0) and look at the assembly code that it executes. It is a ton of code actually, 184 lines of assembly code with one branch to `<__vprintf_internal>` which is another 8052 lines of assembly and a whole lot of further branches... We will just have to believe that it does what it does as for an assembly newcomer this is 100% too much code to swallow. 
 
+![](./images/snapshot_printf.PNG)
+![](./images/snapshot_printf_2.PNG)
+
 The next instruction in our program is `mov w0, #0x0` which stores the value 0 into the lower portion of `x0`. This is the return value of the function (we told it to `return(0);` after sucessfully calling printf)
 
 ```
@@ -416,6 +419,8 @@ Now we arrived at our return instruction and with calling nexti we jump to
 0x4007b4 <__libc_start_call_main+84> bl 0x405de0 <exit>
 ```
 and with another nexti the program terminates.
+
+![](./images/snapshot_return_exit.PNG)
 
 ## Notes
 
