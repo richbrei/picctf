@@ -144,7 +144,101 @@ now we hit
 (gdb) continue
 ```
 
-which will run us to the breakpoint we set for our program.
+which will run us to the breakpoint we set for our program. We can now see the program's assembly code layed out as follows:
+
+![](./images/snapshot_main.png)
+
+We can retreive information about the values stored in our registers using the `info registers <register_number>` command. registers of interest to us are `x0`, `x1`, `x29`, `x30` and `sp`. The current state of these registers is:
+
+```
+(gdb) info registers x0
+x0  0x2
+(gdb) info registers x1
+x1  0x55007fff38
+(gdb) info registers x29
+x29 0x55007ffd80
+(gdb) info registers x30
+x30 0x4007b4
+(gdb) info registers sp
+sp  0x55007ffd80
+```
+We see that x0 holds the number 2 which is argc, the number of command line arguments at function call (`[./test_print, hi]` in python list synthax). `x1` holds a memory address, the contents of which we can examine using
+
+```
+(gdb) x/2x 0x55007fff38
+0x55007fff38:   0x0080019a  0x00000055
+```
+
+`x` in this case stands for examine and the `/2x` allows you to extract two times 4 bytes in hexadecimal notation. What we see here is, drum roll, another memory address in weird reverse ordering, namely the address of the first argument of our argv list: `0x550080019a`. Remember how you specifiy argv in your C-code: 
+
+```
+int main(int argc, char **argv){...}
+``` 
+
+argv is an 8-byte pointer to an 8-byte pointer pointing to the first command line argument. If we want to access the second command line argument (our "hi") we have to look at the next 8 bytes in memory 
+
+```
+(gdb) x/2x 0x55007fff40
+0x55007fff40:   0x008001a7  0x00000055
+```
+
+which translates to the address of our second command line argument `0x55008001a7`. We can verify this by dereferencing these two addresses. What we expect is a hexadecimal representation of our two command line arguments, namely:
+```
+.    /    t    e    s    t    _    p    r    i    n    t
+0x2E 0x2F 0x74 0x65 0x73 0x74 0x5F 0x70 0x72 0x69 0x6E 0x74
+h    i
+0x68 0x69
+```
+
+Let's see if we can find these. For the first argument we expect 12(= 3 x 4) bytes, so we do
+
+```
+(gdb) x/3x 0x550080019a
+0x550080019a:   0x65742f2e  0x705f7473  0x746e6972
+```
+
+which indeed is what we expect, though in weird 32-bit, reverse order chunks. For the second argument we expect 2 bytes, so we simply do
+
+```
+(gdb) x/x 0x55008001a7
+0x55008001a7:   0x5f006968
+```
+
+Which is also what we expect. Now we know everything we need to know before starting to execute our program.
+
+With the command 
+
+```
+(gdb) nexti
+```
+
+we can execute the first instruction and jump to the next one. Let's look at our registers again:
+
+```
+(gdb) info registers x0
+x0  0x2
+(gdb) info registers x1
+x1  0x55007fff38
+(gdb) info registers x29
+x29 0x55007ffd80
+(gdb) info registers x30
+x30 0x4007b4
+(gdb) info registers sp
+sp  0x55007ffd50
+```
+nothing has changed except the value of our stack-pointer, which has decreased by `0x30` or `48`. This means the command has made room on the stack for 48 bytes. We can look at our newborn stackframe by running:
+
+```
+(gdb) x/12x 0x55007ffd50
+0x55007ffd50:   0x007ffd80  0x00000055  0x004007b4  0x00000000
+0x55007ffd60:   0x007ffd80  0x00000055  0x0040077c  0x00000000
+0x55007ffd70:   0x00000002  0x00000000  0x0047d52a  0x00000000
+```
+
+So `stp x29, x30, [sp, #-48]!` translates to decrease `sp` by `48` and store `x29` between the new value of `sp`and `sp+8` and `x30` between `sp+8` and `sp+16`.
+We can clearly see the values of our registers `x29` and `x30` as well, at the bottom of our stack.
+
+x0 contains argc (in this case `0x2`), x1 contains a pointer to memory from where to retreive the actual command line args.
 
 ## Notes
 
