@@ -238,7 +238,184 @@ nothing has changed except the value of our stack-pointer, which has decreased b
 So `stp x29, x30, [sp, #-48]!` translates to decrease `sp` by `48` and store `x29` between the new value of `sp`and `sp+8` and `x30` between `sp+8` and `sp+16`.
 We can clearly see the values of our registers `x29` and `x30` as well, at the bottom of our stack.
 
-x0 contains argc (in this case `0x2`), x1 contains a pointer to memory from where to retreive the actual command line args.
+now we can go `nexti` again and look at our registers.
+
+```
+(gdb) info registers x0
+x0  0x2
+(gdb) info registers x1
+x1  0x55007fff38
+(gdb) info registers x29
+x29 0x55007ffd50
+(gdb) info registers x30
+x30 0x4007b4
+(gdb) info registers sp
+sp  0x55007ffd50
+```
+
+nothing changed except `x29` which now contains the value of `sp`, which means that `mov x29, sp` translates to copy the value of `sp` into `x29`. As we `nexti` again, we see that our registers remain completely unchanged, but what changes is our stack:
+
+```
+(gdb) x/12x 0x55007ffd50
+0x55007ffd50:   0x007ffd80  0x00000055  0x004007b4  0x00000000
+0x55007ffd60:   0x007ffd80  0x00000055  0x0040077c  0x00000002
+0x55007ffd70:   0x00000002  0x00000000  0x0047d52a  0x00000000
+```
+we see that in the second line, the last digit has changed from a zero to a two. thos is because `str w0, [sp, #28]` stands for store the lower 4 bytes of x0 with an offset of 28 bytes from the stack pointer. So now we can already predict what our nex instruction is going to do. So after another `nexti` and another examination of our stack we see:
+
+```
+(gdb) x/12x 0x55007ffd50
+0x55007ffd50:   0x007ffd80  0x00000055  0x004007b4  0x00000000
+0x55007ffd60:   0x007fff38  0x00000055  0x0040077c  0x00000002
+0x55007ffd70:   0x00000002  0x00000000  0x0047d52a  0x00000000
+```
+
+we can see that `str x1, [sp, #16]` has stored the value of x1 (all 8 bytes) to the memory location `sp+16`. The nexti instruction will now retreive that value back and store it into `x0`, which indeed we see looking at our relevant registers:
+
+```
+(gdb) info registers x0
+x0  0x55007fff38
+(gdb) info registers x1
+x1  0x55007fff38
+(gdb) info registers x29
+x29 0x55007ffd50
+(gdb) info registers x30
+x30 0x4007b4
+(gdb) info registers sp
+sp  0x55007ffd50
+```
+
+The next instruction will load into `x0` the value stored at the address stored in `x0` offset by `8`. As we saw above this is he address of our second command line argument `hi`:
+
+```
+(gdb) info registers x0
+x0  0x55008001a7
+(gdb) info registers x1
+x1  0x55007fff38
+(gdb) info registers x29
+x29 0x55007ffd50
+(gdb) info registers x30
+x30 0x4007b4
+(gdb) info registers sp
+sp  0x55007ffd50
+```
+
+The next instruction will store this value onto the stack, at `sp+40`:
+ 
+```
+(gdb) x/12x 0x55007ffd50
+0x55007ffd50:   0x007ffd80  0x00000055  0x004007b4  0x00000000
+0x55007ffd60:   0x007fff38  0x00000055  0x0040077c  0x00000002
+0x55007ffd70:   0x00000002  0x00000000  0x008001a7  0x00000055
+```
+and the instruction after that will load this value into `x1`
+
+```
+(gdb) info registers x0
+x0  0x55008001a7
+(gdb) info registers x1
+x1  0x55008001a7
+(gdb) info registers x29
+x29 0x55007ffd50
+(gdb) info registers x30
+x30 0x4007b4
+(gdb) info registers sp
+sp  0x55007ffd50
+```
+
+All well and good. Now we get into more mirky waters. The next instruction reads 
+
+```
+adrp x0, 0x457000
+```
+
+in gbd and 
+
+```
+adrp x0, .LC0
+```
+
+in our assembly code file.
+
+If we execute if we can see that not much changes except that the value of `x0`:
+
+```
+(gdb) info registers x0
+x0  0x457000
+(gdb) info registers x1
+x1  0x55008001a7
+(gdb) info registers x29
+x29 0x55007ffd50
+(gdb) info registers x30
+x30 0x4007b4
+(gdb) info registers sp
+sp  0x55007ffd50
+```
+
+So what we (or rather the compiler) had been writing under the label `.LCO` can likely be found at address `0x457ab8`. Why not `0x457000`? Because of the next instruction 
+```
+add x0, x0, #0xab8
+add	x0, x0, :lo12:.LC0
+``` 
+which concludes the storing process and leads to:
+
+```
+(gdb) info registers x0
+x0  0x457ab8
+(gdb) info registers x1
+x1  0x55008001a7
+(gdb) info registers x29
+x29 0x55007ffd50
+(gdb) info registers x30
+x30 0x4007b4
+(gdb) info registers sp
+sp  0x55007ffd50
+```
+Why does it need two instructions to store this value into `x0`? Because an instruction in aarch64 is 64 bits long. If your instruction contains a memory address, this address itself is 64 bits long already. So what `adrp x0, .LC0` does is cut away the lower 12 bits of the address and stores the value into `x0`. No to get the fulol address we need to add the lower 12 bits to that address which is done by writing `add	x0, x0, :lo12:.LC0` (the `:lo12:.LCO` stands for lower 12 bits of `.LCO`).
+
+Now we come to the printf call 
+
+```
+bl 0x4066f0 <printf>
+```
+
+If you execute this using `nexti` and check out the terminal where you intially ran your `qemu-aarch64 -g 1234 ./test_print hi`, you can see that he has now printed `Result: hi` but still seems as though he is hanging. This is because even though he has called printf the main function has not yet returned so qemu will not et stop it's work. We can scroll down to the memory location of printf (0x4066f0) and look at the assembly code that it executes. It is a ton of code actually, 184 lines of assembly code with one branch to `<__vprintf_internal>` which is another 8052 lines of assembly and a whole lot of further branches... We will just have to believe that it does what it does as for an assembly newcomer this is 100% too much code to swallow. 
+
+The next instruction in our program is `mov w0, #0x0` which stores the value 0 into the lower portion of `x0`. This is the return value of the function (we told it to `return(0);` after sucessfully calling printf)
+
+```
+(gdb) info registers x0
+x0  0x0
+(gdb) info registers x1
+x1  0x0
+(gdb) info registers x29
+x29 0x55007ffd50
+(gdb) info registers x30
+x30 0x400700
+(gdb) info registers sp
+sp  0x55007ffd50
+```
+
+We can also see that our return address register `x30`contains another value now, namely the value of the <main+44> instruction that we just executed. This is done when calling `bl` which is branch with link. This remembers where to come back to when the called function (in this case <printf>) calls the `ret` instruction. Now we do `ldp x29, x30, [sp], #48` which means load back the values of `x29` and `x30` from the stack and increase `sp` by 48. In other words we tell the program to clean up after itself and reset all registers to what they were before calling main.
+
+```
+(gdb) info registers x0
+x0  0x0
+(gdb) info registers x1
+x1  0x0
+(gdb) info registers x29
+x29 0x55007ffd80
+(gdb) info registers x30
+x30 0x4007b4
+(gdb) info registers sp
+sp  0x55007ffd80
+```
+Now we arrived at our return instruction and with calling nexti we jump to
+
+```
+0x4007b4 <__libc_start_call_main+84> bl 0x405de0 <exit>
+```
+and with another nexti the program terminates.
 
 ## Notes
 
