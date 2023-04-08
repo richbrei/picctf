@@ -514,11 +514,13 @@ cmp val_1, val_2
 ```
 will first subtract `val_2` from `val_1`. Then some information about the result will be stored in bits N,Z,C and V of the `cpsr`, according to the following rules (copy-pasted from ARM dev guide):
 
+```
 Flag	Name	Description
 N	    Negative	Set to the same value as bit[31] of the result. For a 32-bit signed integer, bit[31] being set indicates that the value is negative.
 Z	    Zero	    Set to 1 if the result is zero, otherwise it is set to 0.
 C	    Carry	    Set to the carry-out value from result, or to the value of the last bit shifted out from a shift operation.
 V	    Overflow	Set to 1 if signed overflow or underflow occurred, otherwise it is set to 0.
+```
 
 Now look at the subtraction of the two values. Subtracting `val_2` from `val_1` in binary is equivalent to adding two's complement of `val_2` to `val_1`. Two's complement can be formed by inverting all bits and incrementing the resulting value once.
 
