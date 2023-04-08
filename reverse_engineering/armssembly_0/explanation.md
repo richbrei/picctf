@@ -83,7 +83,7 @@ aarch64-linux-gnu-gcc -S -static -o test.S test.c
 
 we can see that what we get is quite similar though not identical to what has been given to us in the challenge. We can see that there are a lot more labels added like `.cfi_startproc`. I will ignore these for now as i do not yet understand their function myself, however as they are not present in the original assembly code file and this still runs i assume that they are simply some overhead added by the newer version of the gcc compiler to confuse me as the reader. In the second to last line of `chall.S` we can see that it was compiled using gcc 7.5.0 and i am using gcc 11.3.0 In the `test_stripped.S` file we can see the same code with these labels removed. Let's take the rest of it apart to better understand what's happening.
 
-### How printf(argv[1]) works on its own
+### How printf("Result: %d\n", argv[1]) works on its own
 
 First let's look at an even simpler program that just takes the first command line argument and without modifying it at all prints it back at us. The respective file is called `test_print.c`. As we do not use `atoi` we will have to change some things. First, the variable `first`, into which we store the first command line argument, needs to be of type string (or pointer to character, which is how you declare a string in C). Second, in the format string of printf we need to replace the `%d` for double with an `%s` for string. Now we can compile and run it, and if it works look at the corresponding assembly code.
 
@@ -235,7 +235,7 @@ sp  0x55007ffd50
 nothing has changed except the value of our stack-pointer, which has decreased by `0x30` or `48`. This means the command has made room on the stack for 48 bytes. We can look at our newborn stackframe by running:
 
 ```
-(gdb) x/12x 0x55007ffd50
+(gdb) x/12x $sp
 0x55007ffd50:   0x007ffd80  0x00000055  0x004007b4  0x00000000
 0x55007ffd60:   0x007ffd80  0x00000055  0x0040077c  0x00000000
 0x55007ffd70:   0x00000002  0x00000000  0x0047d52a  0x00000000
@@ -262,7 +262,7 @@ sp  0x55007ffd50
 nothing changed except `x29` which now contains the value of `sp`, which means that `mov x29, sp` translates to copy the value of `sp` into `x29`. As we `nexti` again, we see that our registers remain completely unchanged, but what changes is our stack:
 
 ```
-(gdb) x/12x 0x55007ffd50
+(gdb) x/12x $sp
 0x55007ffd50:   0x007ffd80  0x00000055  0x004007b4  0x00000000
 0x55007ffd60:   0x007ffd80  0x00000055  0x0040077c  0x00000002
 0x55007ffd70:   0x00000002  0x00000000  0x0047d52a  0x00000000
@@ -270,7 +270,7 @@ nothing changed except `x29` which now contains the value of `sp`, which means t
 we see that in the second line, the last digit has changed from a zero to a two. thos is because `str w0, [sp, #28]` stands for store the lower 4 bytes of x0 with an offset of 28 bytes from the stack pointer. So now we can already predict what our nex instruction is going to do. So after another `nexti` and another examination of our stack we see:
 
 ```
-(gdb) x/12x 0x55007ffd50
+(gdb) x/12x $sp
 0x55007ffd50:   0x007ffd80  0x00000055  0x004007b4  0x00000000
 0x55007ffd60:   0x007fff38  0x00000055  0x0040077c  0x00000002
 0x55007ffd70:   0x00000002  0x00000000  0x0047d52a  0x00000000
@@ -309,7 +309,7 @@ sp  0x55007ffd50
 The next instruction will store this value onto the stack, at `sp+40`:
  
 ```
-(gdb) x/12x 0x55007ffd50
+(gdb) x/12x $sp
 0x55007ffd50:   0x007ffd80  0x00000055  0x004007b4  0x00000000
 0x55007ffd60:   0x007fff38  0x00000055  0x0040077c  0x00000002
 0x55007ffd70:   0x00000002  0x00000000  0x008001a7  0x00000055
@@ -430,8 +430,147 @@ and with another nexti the program terminates.
 
 ## Description of the actual program in question
 
-As we now ave discussed a lot about printf, argv and so on we can try to understand the assembly code provided in `chall.S`. We can see that it handles 2 command line arguments (the address of the first being stored at the address stored in x1 offset by 8 and the second in the address stored in x1 offset by 16). It retreives the address of the first, calls `atoi` on ot and stores the result in `w19`. Then it calls `atoi` on the second one and stores the result in `w1`, the moves the first argument from `w19` back into `w0`. Then it calls `func1` which first makes room for another 16 bytes on the stack by `sub sp, sp, #16`, then stores `w0`and `w1` on the stack, then loads them in reverse order (what was in `w0`does into `w1`and vice-versa). It then compares the two values. If 
+As we now ave discussed a lot about printf, argv and so on we can try to understand the assembly code provided in `chall.S`. We can see that it handles 2 command line arguments (the address of the first being stored at the address stored in x1 offset by 8 and the second in the address stored in x1 offset by 16). It retreives the address of the first, calls `atoi` on ot and stores the result in `w19`. Then it calls `atoi` on the second one and stores the result in `w1`, the moves the first argument from `w19` back into `w0`. Then it calls `func1` which first makes room for another 16 bytes on the stack by `sub sp, sp, #16`, then stores `w0`and `w1` on the stack, then loads them in reverse order (what was in `w0`does into `w1`and vice-versa). We can use gdb again to look exactly at what happens now within the program. With the same steps as above we get the assembly layout of our program, only that now we will skip directly to `func1`:
 
+```
+qemu-aarch64 -g 1234 ./chall 266134863 1592237099
+gdb-multiarch -q ./chall
+(gdb) target remote :1234
+(gdb) break *func1
+(gdb) continue
+(gdb) layout asm
+```
+![](./images/snapshot_func1.PNG)
+
+Our initial situation looks like this:
+
+```
+(gdb) info registers x0
+x0  0xfdce54f   266134863
+(gdb) info registers x1
+x1  0x5ee79c2b  1592237099
+(gdb) info registers sp
+sp  0x55007ffd60    0x55007ffd60
+(gdb) info registers cpsr
+cpsr    0x60000000  1610612736
+(gdb) x/12x $sp
+0x55007ffd60:   0x007ffd90  0x00000055  0x00400814  0x00000000
+0x55007ffd70:   0x00000003  0x00000000  0x004007dc  0x00000000
+0x55007ffd80:   0x007fff48  0x00000055  0x0047d5aa  0x00000003
+```
+
+As you can see we now start to look at an additional register called `cpsr` or the `current program status register`. This is relevant in the compare and conditional branch instructions, as it contains the flags that are relevant to these processes.
+
+The part we are interested in is the `cmp` instruction, followed by the `bls` instruction. So let's go there with a couple of `nexti`s.
+
+```
+(gdb) info registers x0
+x0  0x5ee79c2b  1592237099
+(gdb) info registers x1
+x1  0xfdce54f   266134863
+(gdb) info registers sp
+sp  0x55007ffd50    0x55007ffd50
+(gdb) info registers cpsr
+cpsr    0x60000000  1610612736
+(gdb) x/16x $sp
+0x55007ffd50:   0x007ffd60  0x00000055  0x5ee79c2b  0x0fdce54f
+0x55007ffd60:   0x007ffd90  0x00000055  0x00400814  0x00000000
+0x55007ffd70:   0x00000003  0x00000000  0x004007dc  0x00000000
+0x55007ffd80:   0x007fff48  0x00000055  0x0047d5aa  0x00000003
+```
+We can see that the program did exactly what we expected. It created 16 bytes room on the stack (decreasing the stack pointer by `0x10`), storing the previous value of the stack pointer at the bottom and then the values of `w0`and `w1` above it.
+
+Then the two values are loaded back into `w0`and `w1` in reverse order. The value of `cpsr` remains unchanged. Now we execute the `compare` instruction. 
+
+```
+(gdb) info registers x0
+x0  0x5ee79c2b  1592237099
+(gdb) info registers x1
+x1  0xfdce54f   266134863
+(gdb) info registers sp
+sp  0x55007ffd50    0x55007ffd50
+(gdb) info registers cpsr
+cpsr    0x80000000  -2147483648
+(gdb) x/16x $sp
+0x55007ffd50:   0x007ffd60  0x00000055  0x5ee79c2b  0x0fdce54f
+0x55007ffd60:   0x007ffd90  0x00000055  0x00400814  0x00000000
+0x55007ffd70:   0x00000003  0x00000000  0x004007dc  0x00000000
+0x55007ffd80:   0x007fff48  0x00000055  0x0047d5aa  0x00000003
+```
+We can now see that the value of `cpsr` has changed from `0x60000000` to `0x80000000` To understand why that is we have to take a look at the binary representation of these two numbers and the what the individual bist within `cpsr` represent:
+
+```
+bit number : 1F 1E 1D 1C 1B 1A 19 18 17 16 15 14 13 12 11 10 F  E  D  C  B  A  9  8  7  6  5  4  3  2  1  0  
+CPSR-flag  : N  Z  C  V                    SS IL                               D  A  I  F     M  M  M  M  M
+0x60000000 = 0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0
+0x80000000 = 1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0 
+```
+The flags we want to take a look at for now are NZCV, the highest 4 bits of the register. 
+
+From the ARM developer manual we can see that setting the flag through the cmp instruction will work the following way:
+
+```
+cmp val_1, val_2
+```
+will first subtract `val_2` from `val_1`. Then some information about the result will be stored in bits N,Z,C and V of the `cpsr`, according to the following rules (copy-pasted from ARM dev guide):
+
+Flag	Name	Description
+N	    Negative	Set to the same value as bit[31] of the result. For a 32-bit signed integer, bit[31] being set indicates that the value is negative.
+Z	    Zero	    Set to 1 if the result is zero, otherwise it is set to 0.
+C	    Carry	    Set to the carry-out value from result, or to the value of the last bit shifted out from a shift operation.
+V	    Overflow	Set to 1 if signed overflow or underflow occurred, otherwise it is set to 0.
+
+Now look at the subtraction of the two values. Subtracting `val_2` from `val_1` in binary is equivalent to adding two's complement of `val_2` to `val_1`. Two's complement can be formed by inverting all bits and incrementing the resulting value once.
+
+```
+    266,134,863 = 0000 1111 1101 1100 1110 0101 0100 1111
+- 1,592,237,099 = 0101 1110 1110 0111 1001 1100 0010 1011
+
+    266,134,863 = 0000 1111 1101 1100 1110 0101 0100 1111
+2's complement  = 1010 0001 0001 1000 0110 0011 1101 0101
+_________________________________________________________
+- 1,326,102,236 = 1011 0000 1111 0101 0100 1001 0010 0100
+```
+
+Now we can fill N,Z,C and V according to the above rules:
+
+```
+N -> 1 (the result is negative)
+Z -> 0 (the result is non-zero)
+C -> 0 (there has been no carry)
+V -> 0 (there has been no overflow)
+```
+
+From this result the processor can now determine, that `val_1` is smaller than `val_2` because the result of the subtraction is negative. If we now move to the next instruction it reads:
+
+```
+b.ls 0x4006f8 <func1+36>
+bls .L2
+```
+
+This checks the flags register if the previous instruction set the flags to a `less than` state and branches if this is so. As it has been the case that `w1` held the lower of the two values we jump to the determined address (label .L2), so we skip the instructions at <func1+28> and <func1+32> and immediately execute 
+
+```
+ldr w0, [sp, #8]
+```
+
+```
+(gdb) info registers x0
+x0  0x5ee79c2b  1592237099
+(gdb) info registers x1
+x1  0xfdce54f   266134863
+(gdb) info registers sp
+sp  0x55007ffd50    0x55007ffd50
+(gdb) info registers cpsr
+cpsr    0x80000000  -2147483648
+(gdb) x/16x $sp
+0x55007ffd50:   0x007ffd60  0x00000055  0x5ee79c2b  0x0fdce54f
+0x55007ffd60:   0x007ffd90  0x00000055  0x00400814  0x00000000
+0x55007ffd70:   0x00000003  0x00000000  0x004007dc  0x00000000
+0x55007ffd80:   0x007fff48  0x00000055  0x0047d5aa  0x00000003
+```
+
+If the the value in `w1` would have been the bigger of the two, the instruction at <func1+28> would have been executed and that value, which was stored in memory at `sp + 12`would have been loaded into `w0` and the isntruction at <func1+36> would have been skipped. Afterwards `sp` is set back to it's original value and the function returns.
 
 
 ## Resources:  
@@ -439,6 +578,8 @@ https://stackoverflow.com/questions/64638627/explain-arm64-instruction-stp
 https://adrianstoll.com/post/working-with-64-bit-arm-binaries-on-x86-64-ubuntu/  
 https://stackoverflow.com/questions/41906688/what-are-the-semantics-of-adrp-and-adrl-instructions-in-arm-assembly  
 https://developer.arm.com/documentation/ddi0487/latest  
+https://developer.arm.com/documentation/den0024/a/ARMv8-Registers/Processor-state?lang=en  
+https://developer.arm.com/documentation/den0024/a/The-A64-instruction-set/Data-processing-instructions/Conditional-instructions  
 https://www.youtube.com/watch?v=QzWW-CBugZo&t=5s  
 https://www.youtube.com/watch?v=xBjQVxVxOxc  
 https://www.youtube.com/watch?v=7fezHk7nmzY    
