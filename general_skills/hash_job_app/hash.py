@@ -12,12 +12,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
     for _ in range(3):
         prompt = s.recv(4096).decode()
-        # print(prompt)
         target = [t.split("\'")[-2] for t in prompt.split("\n") if prompt_msg in t][0]
         print(f"received target: {target}")
         hash = hashlib.md5(target.encode()).hexdigest() +"\n"
         print(f"sending md5 hash: {hash}")
-        #print(hash)
         s.sendall(hash.encode())
         data = s.recv(len(hash)) 
         time.sleep(.5)
