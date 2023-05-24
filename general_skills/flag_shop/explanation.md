@@ -28,7 +28,7 @@ INT_MAX = 2147483647
 -1
 ```
 
-The maximum value a signed integer can hold is `2147483647` or `2^15 - 1`, in binary this would be 
+The maximum value a signed integer can hold is `2147483647` or `2^31 - 1`, in binary this would be 
 
 ```
 0111 1111 1111 1111 1111 1111 1111 1111
@@ -40,4 +40,17 @@ If we add one to this number this will become
 1000 0000 0000 0000 0000 0000 0000 0000
 ```
 
-Which is a negative number according to signed integer rules.
+Which is a negative number according to signed integer rules (the MSB is the sign, 0 means positive, 1 negative). Another fact is that negative numbers are not represented the same way as positive ones in binary. For example: 
+
+```
+0000 0000 0000 0000 0000 0000 0000 0001 =  1
+1000 0000 0000 0000 0000 0000 0000 0001 = -2147483648 != -1
+```
+
+The way to determine a negative number's value from binary is using two's complement. Mathematically, a negative number is the "inverse" of the respective positive number which, when added to said positive number returns the neutral element of addition, which is zero (at least when talking about integers or real numbers) 
+
+```
+3 - 3 = 3 + (-3) = 0
+```
+
+Binary subtraction in machines works similarly to this line of thinking, you take the subtrahend, "invert" it and then add it to the minuend using the same hardware circuit that you would use for addition. The inversion part is achieved by using two's complement.
