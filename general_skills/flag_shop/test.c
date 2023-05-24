@@ -7,7 +7,7 @@ int main(int argc, char** argv){
 
     int number_flags;
     scanf("%d", &number_flags);
-    printf("%d\n", number_flags);
+    printf("%d\n", 900*number_flags);
 
     return 0;
 }
